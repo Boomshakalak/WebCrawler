@@ -1,7 +1,12 @@
 import scrapy
 
 
-class EspnNBASpider(scrapy.spiders.Spider):
+class ESPNNews(scrapy.Item):
+    Meta = scrapy.Field()
+    LinkedContent = scrapy.Field()
+
+
+class EspnSpider(scrapy.spiders.Spider):
     name = "espn"
     start_urls = [
         'http://www.espn.com/espn/rss/nba/news',
@@ -38,16 +43,22 @@ class EspnNBASpider(scrapy.spiders.Spider):
     def parse(self, response):
         url = response.url
         for news in response.css('rss channel item'):
-            yield {
+            espn_news = ESPNNews()
+            espn_news['Meta'] = {
                 'source': url,
                 'title': news.css('title::text').get(),
                 'description': news.css('description::text').get(),
                 'pubDate': news.css('pubDate::text').get(),
-                'linkedContent':scrapy.Request(news.css("link::text").get(), callback=self.parse_content)
             }
+            request = scrapy.Request(news
+                                     .css("link::text").get(), callback=self.parse_content)
+            request.meta['item'] = espn_news
+            yield request
 
     def parse_content(self, response):
         # response.xpath('//div//ul//li//p//a').getall() # this will get the link in the main page
-        yield response.css('p::text').getall() # this will provied full content
+        item = response.meta['item']
+        item['LinkedContent'] = response.css('p::text').getall()
+        return item  # this will provied full content
 
 
